@@ -91,6 +91,10 @@ export default function App() {
           id="limit-size-to-compress"
         />
       </div>
+      <p>
+        Copy nguyên cái json trả về bỏ vô bên dưới (có dấu "[]") - danh sách url
+        image
+      </p>
       <textarea ref={textAreaRef} />
       <div className="btn-container">
         <button onClick={() => handleDownloadCompressImage('dev')}>
