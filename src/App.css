@@ -11,6 +11,10 @@
   max-height: 600px;
 }
 
+.app .loading-text {
+  text-align: center;
+}
+
 .btn-container {
   display: flex;
   justify-content: space-between;

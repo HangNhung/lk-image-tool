@@ -3,11 +3,10 @@ import { compressImage } from './compressImage'
 import JSZip from 'jszip'
 // import { billboardImage } from './data'
 import axios from 'axios'
-import { useEffect, useRef } from 'react'
+import { useRef, useState } from 'react'
 // import { fetchImageData } from './fetchData'
 import './App.css'
 
-// const baseURL = 'https://lkstorageprod.blob.core.windows.net/lkmediadata-prod/'
 const mediaLinkProd =
   'https://lkstorageprod.blob.core.windows.net/lkmediadata-prod/'
 const mediaLinkDev =
@@ -16,18 +15,23 @@ const mediaLinkDev =
 export default function App() {
   const zip = new JSZip()
 
+  const [loading, setLoading] = useState(false)
+  const [loadingPercent, setLoadingPercent] = useState(0)
+
   const textAreaRef = useRef()
   const limitSizeToCompress = useRef()
 
-  const urlToCompressBlob = async (url, mediaLink) => {
+  const urlToCompressBlob = async (url, mediaLink, type) => {
     try {
       const config = { url, method: 'get', responseType: 'blob' }
       const blob = await axios.request(config)
-      // console.log('res', blob.data)
 
-      console.log('limitSizeToCompress', limitSizeToCompress.current.value)
-
-      const fileName = url.split(mediaLink).pop()
+      const fileName =
+        type === 'all'
+          ? url.includes(mediaLinkProd)
+            ? url.split(mediaLinkProd).pop()
+            : url.split(mediaLinkDev).pop()
+          : url.split(mediaLink).pop()
 
       if (blob.data.size < +limitSizeToCompress.current.value * 1024) {
         zip.file(fileName, blob.data)
@@ -44,32 +48,32 @@ export default function App() {
     }
   }
 
-  const fetchImage = async (data, mediaLink) => {
+  const fetchImage = async (data, mediaLink, type) => {
+    setLoading(true)
     for (let i = 0; i < data.length; i++) {
-      await urlToCompressBlob(data[i], mediaLink)
+      setLoadingPercent(Math.floor((i / data.length) * 100))
+      await urlToCompressBlob(data[i], mediaLink, type)
     }
 
     zip.generateAsync({ type: 'blob' }).then(function (content) {
-      saveAs(content, 'image-list-compressed.zip')
+      setLoading(false)
+      saveAs(content, `image-list-${type}.zip`)
     })
   }
 
   const handleDownloadCompressImage = (type) => {
-    // if (type === 'input') {
-    //   console.log('textAreaRef', JSON.parse(textAreaRef.current.value))
-    //   return
-    // }
-
     const mediaLink = type === 'dev' ? mediaLinkDev : mediaLinkProd
     const inputData = JSON.parse(textAreaRef.current.value)
 
-    const data = [...inputData].filter(
-      (item) =>
-        item.includes(mediaLink) &&
-        !item.slice(-4).toLowerCase().includes('.mp4')
+    const data = [...inputData].filter((item) =>
+      type === 'all'
+        ? (item.includes(mediaLinkDev) || item.includes(mediaLinkProd)) &&
+          !item.slice(-4).toLowerCase().includes('.mp4')
+        : item.includes(mediaLink) &&
+          !item.slice(-4).toLowerCase().includes('.mp4')
     )
 
-    fetchImage(data, mediaLink)
+    fetchImage(data, mediaLink, type)
   }
 
   return (
@@ -95,10 +99,13 @@ export default function App() {
         <button onClick={() => handleDownloadCompressImage('prod')}>
           Download image - Prod
         </button>
-        {/* <button onClick={() => handleDownloadCompressImage('input')}>
-          Download InputLink
-        </button> */}
+        <button onClick={() => handleDownloadCompressImage('all')}>
+          Download All
+        </button>
       </div>
+      {loading ? (
+        <p className="loading-text">Loading {loadingPercent}%</p>
+      ) : null}
     </div>
   )
 }
